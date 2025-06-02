@@ -1,0 +1,6 @@
+{
+  "name": "Review Fighters App",
+  "description": "A web application for managing company reviews, interacting with an AI assistant, and viewing analytics.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}
