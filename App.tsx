@@ -1,13 +1,13 @@
-
 import React from 'react';
 import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { ConvexProvider } from 'convex/react';
+import convex from './convex';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import LoginPage from './pages/LoginPage';
 import LandingPage from './pages/LandingPage';
 import SignupWizardPage from './pages/SignupWizardPage'; // Import the new Signup Page
 import DashboardPage from './pages/DashboardPage';
 import ReviewsPage from './pages/ReviewsPage';
-import ChatPage from './pages/ChatPage';
 import MediaPage from './pages/MediaPage';
 import ProfilePage from './pages/ProfilePage';
 import SettingsPage from './pages/SettingsPage';
@@ -15,24 +15,33 @@ import Layout from './components/Layout';
 import { ROUTES } from './constants';
 import NotFoundPage from './pages/NotFoundPage';
 import { UserRole } from './types';
-
-// User specific pages
-import UserSupportTicketsPage from './pages/user/UserSupportTicketsPage';
+import LoadingSpinner from './components/LoadingSpinner';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 
 // Affiliate Pages
 import AffiliateDashboardPage from './pages/affiliate/AffiliateDashboardPage';
 import AffiliateMarketingToolsPage from './pages/affiliate/AffiliateMarketingToolsPage';
+import AffiliateAccountPage from './pages/affiliate/AffiliateAccountPage';
+import AffiliateMarketingMaterialsPage from './pages/affiliate/AffiliateMarketingMaterialsPage';
 
 // Admin Affiliate Management Pages
 import AdminAffiliatesPage from './pages/admin/AdminAffiliatesPage';
 import AdminMarketingMediaPage from './pages/admin/AdminMarketingMediaPage';
+import AdminRolePermissionsPage from './pages/admin/AdminRolePermissionsPage';
+import AdminUserManagementPage from './pages/admin/AdminUserManagementPage';
+import AdminEmailSettingsPage from './pages/admin/AdminEmailSettingsPage';
+
+// Sales Portal Pages
+import SalesDashboardPage from './pages/sales/SalesDashboardPage';
 
 // Staff Portal Pages
 import StaffDashboardPage from './pages/staff/StaffDashboardPage';
+import StaffProfilePage from './pages/staff/StaffProfilePage';
 import StaffTasksPage from './pages/staff/StaffTasksPage';
 import StaffItemsToReviewPage from './pages/staff/StaffItemsToReviewPage';
-import StaffSupportTicketsPage from './pages/staff/StaffSupportTicketsPage';
 import StaffNotificationsPage from './pages/staff/StaffNotificationsPage';
+import StaffOnboardingReviewsPage from './pages/staff/StaffOnboardingReviewsPage';
 // import StaffKnowledgeBasePage from './pages/staff/StaffKnowledgeBasePage'; // Future
 
 // Owner Portal Pages
@@ -44,14 +53,18 @@ import OwnerSystemSettingsPage from './pages/owner/OwnerSystemSettingsPage';
 import OwnerAuditLogsPage from './pages/owner/OwnerAuditLogsPage';
 import OwnerLandingPageEditorPage from './pages/owner/OwnerLandingPageEditorPage'; // New import
 
+// Onboarding pages
+import OnboardingSignupPage from './pages/onboarding/OnboardingSignupPage';
+import OnboardingDemoPage from './pages/onboarding/OnboardingDemoPage';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
+  roles: UserRole[];
 }
 
 // This general ProtectedRoute can be kept for routes accessible by ANY authenticated user
 // However, for more granular control, RoleProtectedRoute is better.
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, roles }) => {
   const { user, isLoading } = useAuth();
 
   if (isLoading) { 
@@ -65,6 +78,26 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   if (!user) {
     return <Navigate to={ROUTES.LOGIN} replace />;
   }
+
+  if (!roles.includes(user.role)) {
+    console.log(`Access denied: ${user.role} user redirected from ${location.pathname}`);
+    
+    let defaultRedirectPath = ROUTES.LANDING; // Default for non-recognized roles or general access denial.
+    if (user.role === UserRole.AFFILIATE) {
+        defaultRedirectPath = ROUTES.AFFILIATE_DASHBOARD;
+    } else if (user.role === UserRole.SALES) {
+        defaultRedirectPath = ROUTES.SALES_DASHBOARD;
+    } else if (user.role === UserRole.USER || user.role === UserRole.ADMIN ) {
+        defaultRedirectPath = ROUTES.DASHBOARD;
+    } else if (user.role === UserRole.STAFF) {
+        defaultRedirectPath = ROUTES.STAFF_DASHBOARD;
+    } else if (user.role === UserRole.OWNER) {
+        defaultRedirectPath = ROUTES.OWNER_DASHBOARD;
+    }
+    
+    return <Navigate to={defaultRedirectPath} replace />; 
+  }
+
   return <Layout>{children}</Layout>;
 };
 
@@ -85,11 +118,13 @@ const RoleProtectedRoute: React.FC<RoleProtectedRouteProps> = ({ children, allow
   }
 
   if (!allowedRoles.includes(user.role)) {
-    console.warn(`User with role ${user.role} tried to access ${location.pathname} (allowed for ${allowedRoles.join(', ')}). Redirecting...`);
+    console.log(`Access denied: ${user.role} user redirected from ${location.pathname}`);
     
     let defaultRedirectPath = ROUTES.LANDING; // Default for non-recognized roles or general access denial.
     if (user.role === UserRole.AFFILIATE) {
-        defaultRedirectPath = ROUTES.CHAT;
+        defaultRedirectPath = ROUTES.AFFILIATE_DASHBOARD;
+    } else if (user.role === UserRole.SALES) {
+        defaultRedirectPath = ROUTES.SALES_DASHBOARD;
     } else if (user.role === UserRole.USER || user.role === UserRole.ADMIN ) {
         defaultRedirectPath = ROUTES.DASHBOARD;
     } else if (user.role === UserRole.STAFF) {
@@ -118,13 +153,16 @@ const AppRoutes: React.FC = () => {
     // If any authenticated user tries to access the public landing page or signup page, redirect them
     if (location.pathname === ROUTES.LANDING || location.pathname === ROUTES.SIGNUP) {
       if (user.role === UserRole.AFFILIATE) {
-        return <Navigate to={ROUTES.CHAT} replace />;
+        return <Navigate to={ROUTES.AFFILIATE_DASHBOARD} replace />;
+      } else if (user.role === UserRole.SALES) {
+        return <Navigate to={ROUTES.SALES_DASHBOARD} replace />;
       } else if (user.role === UserRole.STAFF) {
         return <Navigate to={ROUTES.STAFF_DASHBOARD} replace/>;
       } else if (user.role === UserRole.OWNER) {
         return <Navigate to={ROUTES.OWNER_DASHBOARD} replace/>;
-      }
-       else {
+      } else if (user.role === UserRole.ADMIN) {
+        return <Navigate to={ROUTES.ADMIN_USER_MANAGEMENT} replace />;
+      } else {
         return <Navigate to={ROUTES.DASHBOARD} replace />;
       }
     }
@@ -132,13 +170,16 @@ const AppRoutes: React.FC = () => {
     // If any authenticated user tries to access /login, redirect them
     if (location.pathname === ROUTES.LOGIN) {
       if (user.role === UserRole.AFFILIATE) {
-        return <Navigate to={ROUTES.CHAT} replace />;
+        return <Navigate to={ROUTES.AFFILIATE_DASHBOARD} replace />;
+      } else if (user.role === UserRole.SALES) {
+        return <Navigate to={ROUTES.SALES_DASHBOARD} replace />;
       } else if (user.role === UserRole.STAFF) {
         return <Navigate to={ROUTES.STAFF_DASHBOARD} replace/>;
       } else if (user.role === UserRole.OWNER) {
         return <Navigate to={ROUTES.OWNER_DASHBOARD} replace/>;
-      }
-       else {
+      } else if (user.role === UserRole.ADMIN) {
+        return <Navigate to={ROUTES.ADMIN_USER_MANAGEMENT} replace />;
+      } else {
         return <Navigate to={ROUTES.DASHBOARD} replace />;
       }
     }
@@ -147,112 +188,248 @@ const AppRoutes: React.FC = () => {
 
   return (
     <Routes>
+      {/* Landing Page */}
+      <Route path={ROUTES.LANDING} element={<LandingPage />} />
+
+      {/* Onboarding Routes - Public */}
+      <Route path={ROUTES.ONBOARDING_SIGNUP} element={<OnboardingSignupPage />} />
+      <Route path={ROUTES.ONBOARDING_DEMO} element={<OnboardingDemoPage />} />
+      
+      {/* Auth Routes */}
       <Route path={ROUTES.LOGIN} element={<LoginPage />} />
-      <Route path={ROUTES.SIGNUP} element={<SignupWizardPage />} /> {/* New Signup Route */}
-      
-      {/* Landing Page - Public, no Layout wrapper. Authenticated users are redirected above. */}
-      <Route 
-        path={ROUTES.LANDING} 
-        element={<LandingPage />} 
+      <Route path={ROUTES.SIGNUP_WIZARD} element={<SignupWizardPage />} />
+      <Route path={ROUTES.FORGOT_PASSWORD} element={<ForgotPasswordPage />} />
+      <Route path={ROUTES.RESET_PASSWORD} element={<ResetPasswordPage />} />
+
+      {/* Protected Routes */}
+      <Route
+        path={ROUTES.DASHBOARD}
+        element={
+          <ProtectedRoute roles={[UserRole.USER]}>
+            <DashboardPage />
+          </ProtectedRoute>
+        }
       />
-      
-      {/* Authenticated Routes using RoleProtectedRoute and Layout */}
-      <Route 
-        path={ROUTES.DASHBOARD} 
-        element={<RoleProtectedRoute allowedRoles={[UserRole.USER, UserRole.STAFF, UserRole.ADMIN, UserRole.OWNER]}><DashboardPage /></RoleProtectedRoute>} 
+      <Route
+        path={ROUTES.REVIEWS}
+        element={
+          <ProtectedRoute roles={[UserRole.USER]}>
+            <ReviewsPage />
+          </ProtectedRoute>
+        }
       />
-      <Route 
-        path={ROUTES.REVIEWS} 
-        element={<RoleProtectedRoute allowedRoles={[UserRole.USER, UserRole.STAFF, UserRole.ADMIN, UserRole.OWNER]}><ReviewsPage /></RoleProtectedRoute>} 
+      <Route
+        path={ROUTES.MEDIA}
+        element={
+          <ProtectedRoute roles={[UserRole.USER]}>
+            <MediaPage />
+          </ProtectedRoute>
+        }
       />
-      <Route 
-        path={ROUTES.MEDIA} 
-        element={<RoleProtectedRoute allowedRoles={[UserRole.USER, UserRole.STAFF, UserRole.ADMIN, UserRole.OWNER]}><MediaPage /></RoleProtectedRoute>} 
+      <Route
+        path={ROUTES.PROFILE}
+        element={
+          <ProtectedRoute roles={[UserRole.AFFILIATE, UserRole.USER, UserRole.STAFF, UserRole.ADMIN, UserRole.OWNER]}>
+            <ProfilePage />
+          </ProtectedRoute>
+        }
       />
-      
-      <Route 
-        path={ROUTES.CHAT} 
-        element={<RoleProtectedRoute allowedRoles={[UserRole.AFFILIATE, UserRole.USER, UserRole.STAFF, UserRole.ADMIN, UserRole.OWNER]}><ChatPage /></RoleProtectedRoute>} 
-      />
-      <Route 
-        path={ROUTES.PROFILE} 
-        element={<RoleProtectedRoute allowedRoles={[UserRole.AFFILIATE, UserRole.USER, UserRole.STAFF, UserRole.ADMIN, UserRole.OWNER]}><ProfilePage /></RoleProtectedRoute>} 
-      />
-      <Route 
-        path={ROUTES.SETTINGS} 
-        element={<RoleProtectedRoute allowedRoles={[UserRole.USER, UserRole.STAFF, UserRole.ADMIN, UserRole.OWNER]}><SettingsPage /></RoleProtectedRoute>} 
-      />
-      <Route 
-        path={ROUTES.CUSTOMER_SUPPORT_TICKETS} 
-        element={<RoleProtectedRoute allowedRoles={[UserRole.USER, UserRole.AFFILIATE]}><UserSupportTicketsPage /></RoleProtectedRoute>} 
+      <Route
+        path={ROUTES.SETTINGS}
+        element={
+          <ProtectedRoute roles={[UserRole.USER, UserRole.STAFF, UserRole.ADMIN, UserRole.OWNER]}>
+            <SettingsPage />
+          </ProtectedRoute>
+        }
       />
 
-      <Route 
-        path={ROUTES.AFFILIATE_DASHBOARD} 
-        element={<RoleProtectedRoute allowedRoles={[UserRole.AFFILIATE]}><AffiliateDashboardPage /></RoleProtectedRoute>} 
+      <Route
+        path={ROUTES.AFFILIATE_DASHBOARD}
+        element={
+          <ProtectedRoute roles={[UserRole.AFFILIATE]}>
+            <AffiliateDashboardPage />
+          </ProtectedRoute>
+        }
       />
-      <Route 
-        path={ROUTES.AFFILIATE_MARKETING_TOOLS} 
-        element={<RoleProtectedRoute allowedRoles={[UserRole.AFFILIATE]}><AffiliateMarketingToolsPage /></RoleProtectedRoute>} 
+      <Route
+        path={ROUTES.AFFILIATE_MARKETING_TOOLS}
+        element={
+          <ProtectedRoute roles={[UserRole.AFFILIATE]}>
+            <AffiliateMarketingToolsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path={ROUTES.AFFILIATE_ACCOUNT}
+        element={
+          <ProtectedRoute roles={[UserRole.AFFILIATE]}>
+            <AffiliateAccountPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path={ROUTES.AFFILIATE_MARKETING_MATERIALS}
+        element={
+          <ProtectedRoute roles={[UserRole.AFFILIATE]}>
+            <AffiliateMarketingMaterialsPage />
+          </ProtectedRoute>
+        }
       />
 
-      <Route 
-        path={ROUTES.ADMIN_AFFILIATES} 
-        element={<RoleProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.OWNER]}><AdminAffiliatesPage /></RoleProtectedRoute>} 
+      <Route
+        path={ROUTES.SALES_DASHBOARD}
+        element={
+          <ProtectedRoute roles={[UserRole.SALES]}>
+            <SalesDashboardPage />
+          </ProtectedRoute>
+        }
       />
-      <Route 
-        path={ROUTES.ADMIN_MARKETING_MEDIA} 
-        element={<RoleProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.OWNER]}><AdminMarketingMediaPage /></RoleProtectedRoute>} 
+
+      <Route
+        path={ROUTES.ADMIN_AFFILIATES}
+        element={
+          <ProtectedRoute roles={[UserRole.ADMIN, UserRole.OWNER]}>
+            <AdminAffiliatesPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path={ROUTES.ADMIN_MARKETING_MEDIA}
+        element={
+          <ProtectedRoute roles={[UserRole.ADMIN, UserRole.OWNER]}>
+            <AdminMarketingMediaPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path={ROUTES.ADMIN_ROLE_PERMISSIONS}
+        element={
+          <ProtectedRoute roles={[UserRole.ADMIN, UserRole.OWNER]}>
+            <AdminRolePermissionsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path={ROUTES.ADMIN_USER_MANAGEMENT}
+        element={
+          <ProtectedRoute roles={[UserRole.ADMIN, UserRole.OWNER]}>
+            <AdminUserManagementPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path={ROUTES.ADMIN_EMAIL_SETTINGS}
+        element={
+          <ProtectedRoute roles={[UserRole.ADMIN, UserRole.OWNER]}>
+            <AdminEmailSettingsPage />
+          </ProtectedRoute>
+        }
       />
       
-      <Route 
-        path={ROUTES.STAFF_DASHBOARD} 
-        element={<RoleProtectedRoute allowedRoles={[UserRole.STAFF, UserRole.ADMIN, UserRole.OWNER]}><StaffDashboardPage /></RoleProtectedRoute>} 
+      <Route
+        path={ROUTES.STAFF_DASHBOARD}
+        element={
+          <ProtectedRoute roles={[UserRole.STAFF, UserRole.ADMIN, UserRole.OWNER]}>
+            <StaffDashboardPage />
+          </ProtectedRoute>
+        }
       />
-      <Route 
-        path={ROUTES.STAFF_TASKS} 
-        element={<RoleProtectedRoute allowedRoles={[UserRole.STAFF, UserRole.ADMIN, UserRole.OWNER]}><StaffTasksPage /></RoleProtectedRoute>} 
+      <Route
+        path={ROUTES.STAFF_PROFILE}
+        element={
+          <ProtectedRoute roles={[UserRole.STAFF, UserRole.ADMIN, UserRole.OWNER]}>
+            <StaffProfilePage />
+          </ProtectedRoute>
+        }
       />
-      <Route 
-        path={ROUTES.STAFF_ITEMS_TO_REVIEW} 
-        element={<RoleProtectedRoute allowedRoles={[UserRole.STAFF, UserRole.ADMIN, UserRole.OWNER]}><StaffItemsToReviewPage /></RoleProtectedRoute>} 
+      <Route
+        path={ROUTES.STAFF_TASKS}
+        element={
+          <ProtectedRoute roles={[UserRole.STAFF, UserRole.ADMIN, UserRole.OWNER]}>
+            <StaffTasksPage />
+          </ProtectedRoute>
+        }
       />
-      <Route 
-        path={ROUTES.STAFF_SUPPORT_TICKETS} 
-        element={<RoleProtectedRoute allowedRoles={[UserRole.STAFF, UserRole.ADMIN, UserRole.OWNER]}><StaffSupportTicketsPage /></RoleProtectedRoute>} 
+      <Route
+        path={ROUTES.STAFF_ITEMS_TO_REVIEW}
+        element={
+          <ProtectedRoute roles={[UserRole.STAFF, UserRole.ADMIN, UserRole.OWNER]}>
+            <StaffItemsToReviewPage />
+          </ProtectedRoute>
+        }
       />
-      <Route 
-        path={ROUTES.STAFF_NOTIFICATIONS} 
-        element={<RoleProtectedRoute allowedRoles={[UserRole.STAFF, UserRole.ADMIN, UserRole.OWNER]}><StaffNotificationsPage /></RoleProtectedRoute>} 
+      <Route
+        path={ROUTES.STAFF_ONBOARDING_REVIEWS}
+        element={
+          <ProtectedRoute roles={[UserRole.STAFF, UserRole.ADMIN, UserRole.OWNER]}>
+            <StaffOnboardingReviewsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path={ROUTES.STAFF_NOTIFICATIONS}
+        element={
+          <ProtectedRoute roles={[UserRole.STAFF, UserRole.ADMIN, UserRole.OWNER]}>
+            <StaffNotificationsPage />
+          </ProtectedRoute>
+        }
       />
       
-      <Route 
-        path={ROUTES.OWNER_DASHBOARD} 
-        element={<RoleProtectedRoute allowedRoles={[UserRole.OWNER]}><OwnerDashboardPage /></RoleProtectedRoute>} 
+      <Route
+        path={ROUTES.OWNER_DASHBOARD}
+        element={
+          <ProtectedRoute roles={[UserRole.OWNER]}>
+            <OwnerDashboardPage />
+          </ProtectedRoute>
+        }
       />
-      <Route 
-        path={ROUTES.OWNER_FINANCIALS} 
-        element={<RoleProtectedRoute allowedRoles={[UserRole.OWNER]}><OwnerFinancialsPage /></RoleProtectedRoute>} 
+      <Route
+        path={ROUTES.OWNER_FINANCIALS}
+        element={
+          <ProtectedRoute roles={[UserRole.OWNER]}>
+            <OwnerFinancialsPage />
+          </ProtectedRoute>
+        }
       />
-      <Route 
-        path={ROUTES.OWNER_AFFILIATE_OVERSIGHT} 
-        element={<RoleProtectedRoute allowedRoles={[UserRole.OWNER]}><OwnerAffiliateOversightPage /></RoleProtectedRoute>} 
+      <Route
+        path={ROUTES.OWNER_AFFILIATE_OVERSIGHT}
+        element={
+          <ProtectedRoute roles={[UserRole.OWNER]}>
+            <OwnerAffiliateOversightPage />
+          </ProtectedRoute>
+        }
       />
-      <Route 
-        path={ROUTES.OWNER_STAFF_MANAGEMENT} 
-        element={<RoleProtectedRoute allowedRoles={[UserRole.OWNER]}><OwnerStaffManagementPage /></RoleProtectedRoute>} 
+      <Route
+        path={ROUTES.OWNER_STAFF_MANAGEMENT}
+        element={
+          <ProtectedRoute roles={[UserRole.OWNER]}>
+            <OwnerStaffManagementPage />
+          </ProtectedRoute>
+        }
       />
-      <Route 
-        path={ROUTES.OWNER_SYSTEM_SETTINGS} 
-        element={<RoleProtectedRoute allowedRoles={[UserRole.OWNER]}><OwnerSystemSettingsPage /></RoleProtectedRoute>} 
+      <Route
+        path={ROUTES.OWNER_SYSTEM_SETTINGS}
+        element={
+          <ProtectedRoute roles={[UserRole.OWNER]}>
+            <OwnerSystemSettingsPage />
+          </ProtectedRoute>
+        }
       />
-      <Route 
-        path={ROUTES.OWNER_AUDIT_LOGS} 
-        element={<RoleProtectedRoute allowedRoles={[UserRole.OWNER]}><OwnerAuditLogsPage /></RoleProtectedRoute>} 
+      <Route
+        path={ROUTES.OWNER_AUDIT_LOGS}
+        element={
+          <ProtectedRoute roles={[UserRole.OWNER]}>
+            <OwnerAuditLogsPage />
+          </ProtectedRoute>
+        }
       />
-      <Route 
-        path={ROUTES.OWNER_LANDING_PAGE_EDITOR} 
-        element={<RoleProtectedRoute allowedRoles={[UserRole.OWNER, UserRole.ADMIN]}><OwnerLandingPageEditorPage /></RoleProtectedRoute>} 
+      <Route
+        path={ROUTES.OWNER_LANDING_PAGE_EDITOR}
+        element={
+          <ProtectedRoute roles={[UserRole.OWNER, UserRole.ADMIN]}>
+            <OwnerLandingPageEditorPage />
+          </ProtectedRoute>
+        }
       />
       
       <Route path="*" element={<NotFoundPage />} />
@@ -263,11 +440,13 @@ const AppRoutes: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <HashRouter>
-        <AppRoutes />
-      </HashRouter>
-    </AuthProvider>
+    <ConvexProvider client={convex}>
+      <AuthProvider>
+        <HashRouter>
+          <AppRoutes />
+        </HashRouter>
+      </AuthProvider>
+    </ConvexProvider>
   );
 };
 

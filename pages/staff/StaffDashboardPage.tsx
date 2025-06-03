@@ -1,12 +1,11 @@
-
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { staffService } from '../../services/staffService';
-import { Task, StaffReviewItem, SupportTicket, StaffMember } from '../../types';
+import { Task, StaffReviewItem, StaffMember } from '../../types';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { Link } from 'react-router-dom';
 import { ROUTES } from '../../constants';
-import { ListChecks, Eye, Bell, HelpCircle, Briefcase, UserCircle } from 'lucide-react';
+import { ListChecks, Eye, Bell, Briefcase, UserCircle } from 'lucide-react';
 
 interface StatCardProps {
   title: string;
@@ -35,7 +34,6 @@ const StaffDashboardPage: React.FC = () => {
   const [staffDetails, setStaffDetails] = useState<StaffMember | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [reviewItems, setReviewItems] = useState<StaffReviewItem[]>([]);
-  const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,16 +47,14 @@ const StaffDashboardPage: React.FC = () => {
       setIsLoading(true);
       setError(null);
       try {
-        const [sDetails, sTasks, sReviewItems, sTickets] = await Promise.all([
+        const [sDetails, sTasks, sReviewItems] = await Promise.all([
           staffService.getStaffMemberDetails(user.staffId),
           staffService.getTasksForStaff(user.staffId),
           staffService.getReviewItemsForStaff(user.staffId),
-          staffService.getSupportTicketsForStaff(user.staffId),
         ]);
         setStaffDetails(sDetails);
         setTasks(sTasks.filter(t => t.status !== 'Completed')); // Show active tasks
         setReviewItems(sReviewItems.filter(ri => ri.status === 'Pending Review' || ri.status === 'Pending Assignment'));
-        setTickets(sTickets.filter(t => t.status !== 'Resolved' && t.status !== 'Closed'));
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load staff dashboard data.");
       } finally {
@@ -88,7 +84,7 @@ const StaffDashboardPage: React.FC = () => {
         </div>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <StatCard 
           title="Active Tasks" 
           count={tasks.length} 
@@ -102,13 +98,6 @@ const StaffDashboardPage: React.FC = () => {
           icon={<Eye size={24} />} 
           linkTo={ROUTES.STAFF_ITEMS_TO_REVIEW}
           colorClass="border-yellow-500"
-        />
-        <StatCard 
-          title="Open Support Tickets" 
-          count={tickets.length} 
-          icon={<HelpCircle size={24} />} 
-          linkTo={ROUTES.STAFF_SUPPORT_TICKETS}
-          colorClass="border-green-500"
         />
       </div>
 

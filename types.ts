@@ -4,6 +4,7 @@ export enum UserRole {
   OWNER = "owner",
   AFFILIATE = "affiliate", 
   STAFF = "staff",
+  SALES = "sales",
 }
 
 export interface User {
@@ -13,6 +14,7 @@ export interface User {
   name: string; 
   affiliateId?: string; 
   staffId?: string; 
+  salesId?: string;
 }
 
 export interface UserProfile {
@@ -326,5 +328,161 @@ export interface Payout {
   processingDate?: string; // DateTime, Optional
   processedByStaffId?: string; // Ref to StaffMember
   transactionID_External?: string;
+  notes?: string;
+}
+
+// Sales System Types - Similar to affiliate but with paid tasks
+
+export type SalesTaskStatus = 'Available' | 'Claimed' | 'In Progress' | 'Submitted' | 'Under Review' | 'Approved' | 'Rejected' | 'Paid';
+export type SalesTaskCategory = 'Lead Generation' | 'Research' | 'Outreach' | 'Data Collection' | 'Verification' | 'Other';
+
+export interface SalesMember {
+  salesId: string; // Key, Unique
+  userId: string; // Link to User table
+  name: string;
+  email: string;
+  signupDate: string; // Date
+  status: 'Active' | 'Inactive' | 'Suspended';
+  currentBalance: number; // Current earnings balance
+  totalEarnings: number; // Lifetime earnings
+  totalTasksCompleted: number; // Number of completed tasks
+  averageRating: number; // Performance rating (1-5)
+  payoutDetails: string; // e.g., PayPal email, bank info
+  specializations?: SalesTaskCategory[]; // Areas of expertise
+}
+
+export interface SalesTask {
+  taskId: string; // Key, Unique
+  title: string;
+  description: string;
+  category: SalesTaskCategory;
+  reward: number; // Payment amount for completion
+  requirements: string[]; // List of requirements/deliverables
+  estimatedTime: string; // e.g., "2-4 hours"
+  difficulty: 'Easy' | 'Medium' | 'Hard';
+  status: SalesTaskStatus;
+  postedDate: string; // When task was posted
+  deadline?: string; // Optional deadline
+  maxClaims: number; // How many people can work on this (default 1)
+  currentClaims: number; // Current number of people working on it
+  createdByStaffId: string; // Staff member who posted the task
+  approvedByStaffId?: string; // Staff member who approved completion
+  tags?: string[]; // Optional tags for filtering
+}
+
+export interface SalesTaskClaim {
+  claimId: string; // Key, Unique
+  taskId: string; // Reference to SalesTask
+  salesId: string; // Reference to SalesMember
+  claimedDate: string; // When user claimed the task
+  submittedDate?: string; // When user submitted the work
+  submissionNotes?: string; // User's notes about the submission
+  submissionFiles?: string[]; // URLs to uploaded files/evidence
+  reviewedDate?: string; // When staff reviewed the submission
+  reviewerStaffId?: string; // Staff member who reviewed
+  reviewNotes?: string; // Staff review comments
+  status: SalesTaskStatus;
+  paidDate?: string; // When payment was processed
+  paidAmount?: number; // Actual amount paid (might differ from reward)
+}
+
+export interface SalesNotification {
+  notificationId: string;
+  recipientSalesId: string;
+  message: string;
+  timestamp: string;
+  isRead: boolean;
+  severity: NotificationSeverity;
+  relatedTaskId?: string; // If notification is about a specific task
+  actionRequired?: boolean; // If user needs to take action
+}
+
+// Onboarding System Types
+export type OnboardingStatus = 'Draft' | 'Information_Complete' | 'Subscription_Confirmed' | 'Under_Review' | 'Approved' | 'Rejected' | 'Active';
+export type OnboardingStage = 'Signup' | 'Business_Info' | 'Subscription' | 'Review' | 'Completion';
+export type NotificationType = 'Email' | 'Web' | 'Both';
+export type OnboardingNotificationTrigger = 'Business_Signup' | 'Information_Complete' | 'Subscription_Confirmed' | 'Assigned_For_Review' | 'Review_Accepted' | 'Review_Rejected' | 'Onboarding_Complete';
+
+export interface OnboardingApplication {
+  applicationId: string; // Key, Unique
+  userId: string; // Link to User table
+  businessOwnerId?: string; // Link to future BusinessOwner table
+  status: OnboardingStatus;
+  currentStage: OnboardingStage;
+  submissionDate: string; // When initially submitted
+  informationCompleteDate?: string; // When business info was completed
+  subscriptionConfirmedDate?: string; // When subscription was confirmed
+  assignedToStaffId?: string; // Staff member reviewing the application
+  reviewStartedDate?: string; // When staff started reviewing
+  reviewCompletedDate?: string; // When review was completed
+  approvalDate?: string; // When approved
+  rejectionDate?: string; // When rejected
+  rejectionReason?: string; // Why it was rejected
+  notes?: string; // Internal notes
+  priority: Priority; // Reusing existing Priority type
+}
+
+export interface OnboardingBusinessInfo {
+  applicationId: string; // Link to OnboardingApplication
+  businessName: string;
+  businessType: string; // e.g., "Restaurant", "Retail", "Service"
+  businessDescription: string;
+  website?: string;
+  phoneNumber: string;
+  email: string;
+  address: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+  numberOfEmployees?: number;
+  annualRevenue?: string; // Range like "50k-100k"
+  currentReviewPlatforms?: string[]; // Google, Yelp, etc.
+  painPoints?: string; // What challenges they face
+  goals?: string; // What they want to achieve
+  additionalInfo?: string;
+}
+
+export interface OnboardingSubscription {
+  applicationId: string; // Link to OnboardingApplication
+  planType: string; // e.g., "Basic", "Professional", "Enterprise"
+  billingCycle: 'Monthly' | 'Yearly';
+  amount: number; // Subscription amount
+  paymentMethodId?: string; // Stripe payment method
+  subscriptionId?: string; // Stripe subscription ID
+  trialEndDate?: string; // If they have a trial period
+  confirmedDate: string; // When subscription was confirmed
+}
+
+export interface OnboardingNotification {
+  notificationId: string;
+  applicationId: string; // Link to OnboardingApplication
+  trigger: OnboardingNotificationTrigger;
+  recipients: {
+    userIds?: string[]; // For web notifications
+    emails?: string[]; // For email notifications
+    roles?: UserRole[]; // Send to all users with these roles
+  };
+  notificationType: NotificationType;
+  message: string;
+  emailSubject?: string; // For email notifications
+  emailTemplate?: string; // Email template name
+  sentDate: string;
+  isRead: boolean; // For web notifications
+  readDate?: string;
+}
+
+export interface OnboardingTask {
+  taskId: string;
+  applicationId: string; // Link to OnboardingApplication
+  assignedToStaffId: string;
+  title: string;
+  description: string;
+  dueDate?: string;
+  status: TaskStatus; // Reusing existing TaskStatus
+  priority: Priority;
+  createdDate: string;
+  startedDate?: string;
+  completedDate?: string;
   notes?: string;
 }

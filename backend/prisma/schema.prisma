@@ -1,0 +1,91 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// Prisma schema for Review Fighters App
+
+model User {
+  id          String      @id @default(uuid()) @db.VarChar(191)
+  email       String      @unique @db.VarChar(191)
+  role        String
+  name        String
+  affiliate   Affiliate?  @relation("UserAffiliate")
+  affiliateId String?     @unique @db.VarChar(191)
+  staff       StaffMember? @relation("UserStaff")
+  staffId     String?     @unique @db.VarChar(191)
+  profile     UserProfile?
+}
+
+model UserProfile {
+  id                  String   @id @default(uuid()) @db.VarChar(191)
+  name                String
+  address             String
+  phone               String
+  email               String   @db.VarChar(191)
+  zipCode             String
+  businessName        String?
+  businessAddress     String?
+  businessPhoneNumber String?
+  businessEmail       String?  @db.VarChar(191)
+  businessWebsite     String?
+  businessSocials     Json?
+  adminNotes          String?
+  customerNotes       String?
+  user                User     @relation(fields: [userId], references: [id])
+  userId              String   @unique @db.VarChar(191)
+}
+
+model Review {
+  id                   String   @id @default(uuid()) @db.VarChar(191)
+  reviewerName         String
+  reviewContent        String
+  rating               Int
+  reviewDate           DateTime
+  reviewSource         String
+  reviewRelationship   String?
+  isCustomer           Boolean
+  isFormerEmployee     Boolean?
+  knowsReviewerIdentity Boolean
+  reviewerDetails      Json?
+  associatedMediaIds   Json?
+}
+
+model Affiliate {
+  affiliateID    String   @id @default(uuid()) @db.VarChar(191)
+  name           String
+  email          String   @db.VarChar(191)
+  signupDate     DateTime
+  status         String
+  payoutDetails  String
+  currentBalance Float
+  totalClicks    Int
+  totalSales     Int
+  affiliateLink  String
+  qrCodeLink     String
+  user           User?    @relation("UserAffiliate", fields: [userId], references: [id])
+  userId         String?  @unique @db.VarChar(191)
+  isHighValue    Boolean?
+}
+
+model StaffMember {
+  staffId      String   @id @default(uuid()) @db.VarChar(191)
+  user         User?   @relation("UserStaff", fields: [userId], references: [id])
+  userId       String? @unique @db.VarChar(191)
+  name         String
+  email        String   @db.VarChar(191)
+  internalRole String
+  team         String?
+  isOwner      Boolean?
+}

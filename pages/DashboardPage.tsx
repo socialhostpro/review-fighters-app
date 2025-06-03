@@ -1,6 +1,4 @@
-
 import React, { useEffect, useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { reviewService } from '../services/reviewService';
 import { Review } from '../types';
 import { useAuth } from '../hooks/useAuth';
@@ -18,7 +16,6 @@ const StatCard: React.FC<{ title: string; value: string | number; icon: React.Re
     {description && <p className="text-xs text-textSecondary mt-1">{description}</p>}
   </div>
 );
-
 
 const DashboardPage: React.FC = () => {
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -59,20 +56,6 @@ const DashboardPage: React.FC = () => {
     acc[review.rating] = (acc[review.rating] || 0) + 1;
     return acc;
   }, {} as Record<number, number>);
-  
-  const chartData = Object.entries(ratingDistribution)
-    .map(([rating, count]) => ({ name: `${rating} Star${parseInt(rating) > 1 ? 's' : ''}`, count }))
-    .sort((a, b) => parseInt(a.name) - parseInt(b.name));
-
-
-  // Mock data for reviews over time
-  const reviewsOverTimeData = [
-    { name: 'Jan', reviews: 4 }, { name: 'Feb', reviews: 3 },
-    { name: 'Mar', reviews: 5 }, { name: 'Apr', reviews: 7 },
-    { name: 'May', reviews: 6 }, { name: 'Jun', reviews: 9 },
-    { name: 'Jul', reviews: totalReviews - (4+3+5+7+6+9) > 0 ? totalReviews - (4+3+5+7+6+9) : 5 }, // Distribute current reviews
-  ].slice(0,7);
-
 
   return (
     <div className="container mx-auto space-y-6">
@@ -88,34 +71,45 @@ const DashboardPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-surface p-6 rounded-xl shadow-lg">
           <h2 className="text-xl font-semibold text-textPrimary mb-4">Review Rating Distribution</h2>
-          {chartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={chartData} margin={{ top: 5, right: 20, left: -20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#757575' }} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: '#757575' }} />
-                <Tooltip wrapperClassName="rounded-md shadow-lg" contentStyle={{ backgroundColor: '#fff', border: '1px solid #ccc' }}/>
-                <Legend wrapperStyle={{fontSize: '14px'}}/>
-                <Bar dataKey="count" fill="#1976D2" name="Number of Reviews" barSize={40} radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+          {Object.keys(ratingDistribution).length > 0 ? (
+            <div className="space-y-2">
+              {Object.entries(ratingDistribution)
+                .sort(([a], [b]) => parseInt(b) - parseInt(a))
+                .map(([rating, count]) => (
+                  <div key={rating} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <span className="flex items-center">
+                      <span className="font-medium">{rating} Star{parseInt(rating) > 1 ? 's' : ''}</span>
+                      <div className="flex ml-2">
+                        {Array(parseInt(rating)).fill(0).map((_, i) => (
+                          <Star key={i} size={16} className="text-yellow-400 fill-yellow-400" />
+                        ))}
+                      </div>
+                    </span>
+                    <span className="font-bold text-primary">{count} reviews</span>
+                  </div>
+                ))}
+            </div>
           ) : (
-            <p className="text-textSecondary">No review data available to display chart.</p>
+            <p className="text-textSecondary">No review data available to display.</p>
           )}
         </div>
 
         <div className="bg-surface p-6 rounded-xl shadow-lg">
-          <h2 className="text-xl font-semibold text-textPrimary mb-4">Reviews Over Time (Mock)</h2>
-           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={reviewsOverTimeData} margin={{ top: 5, right: 20, left: -20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0"/>
-              <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#757575' }}/>
-              <YAxis tick={{ fontSize: 12, fill: '#757575' }}/>
-              <Tooltip  wrapperClassName="rounded-md shadow-lg" contentStyle={{ backgroundColor: '#fff', border: '1px solid #ccc' }}/>
-              <Legend wrapperStyle={{fontSize: '14px'}}/>
-              <Line type="monotone" dataKey="reviews" stroke="#FF6F00" strokeWidth={2} activeDot={{ r: 6 }} name="New Reviews"/>
-            </LineChart>
-          </ResponsiveContainer>
+          <h2 className="text-xl font-semibold text-textPrimary mb-4">Review Summary</h2>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+              <span className="text-green-700 font-medium">Positive Reviews (4-5 stars)</span>
+              <span className="text-green-800 font-bold">{positiveReviews}</span>
+            </div>
+            <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
+              <span className="text-yellow-700 font-medium">Neutral Reviews (3 stars)</span>
+              <span className="text-yellow-800 font-bold">{reviews.filter(r => r.rating === 3).length}</span>
+            </div>
+            <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
+              <span className="text-red-700 font-medium">Negative Reviews (1-2 stars)</span>
+              <span className="text-red-800 font-bold">{negativeReviews}</span>
+            </div>
+          </div>
         </div>
       </div>
       
@@ -123,7 +117,7 @@ const DashboardPage: React.FC = () => {
       <div className="bg-surface p-6 rounded-xl shadow-lg mt-6">
         <h2 className="text-xl font-semibold text-textPrimary mb-4">Review Sources (Coming Soon)</h2>
         <p className="text-textSecondary">A breakdown of where your reviews are coming from (e.g., Google, Yelp, Direct).</p>
-        {/* Placeholder for Pie Chart or Table */}
+        {/* Placeholder for future features */}
       </div>
     </div>
   );

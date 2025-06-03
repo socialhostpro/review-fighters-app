@@ -1,8 +1,9 @@
 import React from 'react';
-import { LogOut, UserCircle, Bell, Menu } from 'lucide-react'; // Added Menu icon
+import { LogOut, UserCircle, Menu } from 'lucide-react'; // Removed Bell since it's in NotificationPanel
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../constants';
+import NotificationPanel from './NotificationPanel';
 
 interface NavbarProps {
   toggleMobileSidebar?: () => void; // Prop to toggle mobile sidebar
@@ -30,12 +31,12 @@ const Navbar: React.FC<NavbarProps> = ({ toggleMobileSidebar }) => {
             <Menu size={24} />
           </button>
         )}
-        <h1 className="text-xl font-semibold text-textPrimary hidden sm:block">Company Dashboard</h1>
+        <h1 className="text-xl font-semibold text-textPrimary hidden sm:block">Review Fighters</h1>
       </div>
       <div className="flex items-center space-x-4">
-        <button className="text-textSecondary hover:text-primary p-1 rounded-full hover:bg-primary-light/10">
-          <Bell size={20} />
-        </button>
+        {/* Notification Panel */}
+        <NotificationPanel />
+        
         <div className="flex items-center space-x-2">
           <UserCircle size={24} className="text-textSecondary" />
           <span className="text-textPrimary text-sm sm:text-base">{user?.name || user?.email}</span>

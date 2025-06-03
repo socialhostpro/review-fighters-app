@@ -1,154 +1,175 @@
-
-import React, { useEffect, useState } from 'react';
-import { useAuth } from '../../hooks/useAuth';
-import { affiliateService } from '../../services/affiliateService';
-import { Affiliate } from '../../types';
-import LoadingSpinner from '../../components/LoadingSpinner';
-import { Link as LinkIconLucide, DollarSign, MousePointerClick, ShoppingCart, AlertTriangle, Copy } from 'lucide-react';
-// Consider adding a QR code generation library if needed, e.g., qrcode.react
-// import QRCode from 'qrcode.react'; 
-
-interface StatCardProps {
-  title: string;
-  value: string | number;
-  icon: React.ReactNode;
-  colorClass: string;
-}
-
-const StatCard: React.FC<StatCardProps> = ({ title, value, icon, colorClass }) => (
-  <div className={`bg-surface p-5 rounded-lg shadow-md border-l-4 ${colorClass}`}>
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-sm text-textSecondary font-medium">{title}</p>
-        <p className="text-2xl font-bold text-textPrimary">{value}</p>
-      </div>
-      <div className={`p-3 rounded-full bg-opacity-20 ${colorClass.replace('border-', 'bg-')}`}>
-        {icon}
-      </div>
-    </div>
-  </div>
-);
+import React from 'react';
+import { DollarSign, TrendingUp, Users, Eye, CreditCard, Share2, BarChart3, Calendar } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ROUTES } from '../../constants';
 
 const AffiliateDashboardPage: React.FC = () => {
-  const { user } = useAuth();
-  const [affiliateData, setAffiliateData] = useState<Affiliate | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [linkCopied, setLinkCopied] = useState(false);
-
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      if (!user || !user.affiliateId) {
-        setError("Affiliate ID not found for this user.");
-        setIsLoading(false);
-        return;
-      }
-      setIsLoading(true);
-      setError(null);
-      try {
-        const data = await affiliateService.getAffiliateDashboardData(user.affiliateId);
-        setAffiliateData(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load affiliate dashboard data.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchDashboardData();
-  }, [user]);
-
-  const handleCopyLink = () => {
-    if (affiliateData?.affiliateLink) {
-      navigator.clipboard.writeText(affiliateData.affiliateLink)
-        .then(() => {
-          setLinkCopied(true);
-          setTimeout(() => setLinkCopied(false), 2000);
-        })
-        .catch(err => console.error('Failed to copy link: ', err));
-    }
+  // Mock data - in real app this would come from API
+  const affiliateData = {
+    currentBalance: 1250.75,
+    pendingEarnings: 325.50,
+    totalEarnings: 5875.25,
+    thisMonthEarnings: 425.75,
+    totalClicks: 1250,
+    conversions: 45,
+    conversionRate: 3.6,
+    activeLinks: 8,
+    nextPayoutDate: '2024-12-15'
   };
 
-  if (isLoading) {
-    return <div className="flex justify-center items-center h-64"><LoadingSpinner size="lg" /></div>;
-  }
-
-  if (error) {
-    return (
-      <div className="container mx-auto p-4 text-center">
-        <AlertTriangle size={48} className="text-red-500 mx-auto mb-4" />
-        <h2 className="text-xl font-semibold text-red-700">Error Loading Dashboard</h2>
-        <p className="text-textSecondary">{error}</p>
-      </div>
-    );
-  }
-
-  if (!affiliateData) {
-    return <div className="container mx-auto p-4 text-center text-textSecondary">No affiliate data available.</div>;
-  }
+  const recentActivity = [
+    { id: 1, type: 'conversion', description: 'New signup from social media link', amount: 25.00, date: '2024-11-28' },
+    { id: 2, type: 'click', description: 'Click on landing page QR code', amount: 0, date: '2024-11-28' },
+    { id: 3, type: 'conversion', description: 'Premium upgrade referral', amount: 50.00, date: '2024-11-27' },
+    { id: 4, type: 'click', description: 'Email campaign link clicked', amount: 0, date: '2024-11-27' },
+  ];
 
   return (
-    <div className="container mx-auto space-y-6">
-      <h1 className="text-3xl font-bold text-textPrimary">Affiliate Dashboard</h1>
-      <p className="text-textSecondary">Welcome, {affiliateData.name}! Here's an overview of your affiliate performance.</p>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <StatCard title="Current Balance" value={`$${affiliateData.currentBalance.toFixed(2)}`} icon={<DollarSign size={24} />} colorClass="border-green-500" />
-        <StatCard title="Total Clicks" value={affiliateData.totalClicks} icon={<MousePointerClick size={24} />} colorClass="border-blue-500" />
-        <StatCard title="Total Sales (Approved)" value={affiliateData.totalSales} icon={<ShoppingCart size={24} />} colorClass="border-purple-500" />
-      </div>
-
-      <div className="bg-surface p-6 rounded-lg shadow-md">
-        <h2 className="text-xl font-semibold text-textPrimary mb-3">Your Unique Affiliate Link</h2>
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 p-3 bg-gray-100 rounded-md">
-          <LinkIconLucide size={20} className="text-primary flex-shrink-0 mt-1 sm:mt-0" />
-          <input 
-            type="text" 
-            value={affiliateData.affiliateLink} 
-            readOnly 
-            className="w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-sm focus:outline-none"
-            onFocus={(e) => e.target.select()}
-          />
-          <button 
-            onClick={handleCopyLink}
-            className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark text-sm transition-colors duration-150 flex items-center justify-center w-full sm:w-auto"
-          >
-            <Copy size={16} className="mr-2" />
-            {linkCopied ? 'Copied!' : 'Copy Link'}
-          </button>
-        </div>
-        <p className="text-xs text-textSecondary mt-2">Share this link to earn commissions. You can also find more marketing materials in the "Marketing Tools" section.</p>
-      </div>
-      
-      <div className="bg-surface p-6 rounded-lg shadow-md">
-        <h2 className="text-xl font-semibold text-textPrimary mb-3">Your QR Code</h2>
-        <div className="flex flex-col items-center md:flex-row md:items-start gap-4">
-          {affiliateData.qrCodeLink ? (
-            <img src={affiliateData.qrCodeLink} alt="Affiliate QR Code" className="w-40 h-40 border rounded-md p-1" />
-          ) : (
-            <div className="w-40 h-40 border rounded-md flex items-center justify-center bg-gray-100 text-textSecondary">QR Code N/A</div>
-          )}
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="bg-white rounded-lg shadow-sm border p-6">
+        <div className="flex items-center space-x-3">
+          <BarChart3 className="h-8 w-8 text-blue-600" />
           <div>
-            <p className="text-textPrimary mb-2">Use this QR code for offline promotions or easy mobile sharing. It directs users to your affiliate link.</p>
-            {affiliateData.qrCodeLink && (
-                <a 
-                    href={affiliateData.qrCodeLink} 
-                    download={`affiliate_qr_${affiliateData.affiliateID}.png`}
-                    className="inline-block px-4 py-2 bg-secondary text-white rounded-md hover:bg-secondary-dark text-sm transition-colors duration-150"
-                >
-                    Download QR Code
-                </a>
-            )}
+            <h1 className="text-2xl font-bold text-gray-900">Affiliate Dashboard</h1>
+            <p className="text-gray-600">Track your performance and earnings</p>
           </div>
         </div>
-        {/* If using qrcode.react:
-          <QRCode value={affiliateData.affiliateLink} size={160} level="H" /> 
-        */}
       </div>
 
-      <div className="bg-surface p-6 rounded-lg shadow-md">
-        <h2 className="text-xl font-semibold text-textPrimary mb-3">Recent Activity (Coming Soon)</h2>
-        <p className="text-textSecondary">Details about your recent clicks, sales, and payouts will appear here.</p>
-        {/* Placeholder for tables or lists of recent sales/clicks */}
+      {/* Key Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="bg-white rounded-lg shadow-sm border p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Available Balance</p>
+              <p className="text-2xl font-bold text-green-600">${affiliateData.currentBalance.toFixed(2)}</p>
+            </div>
+            <DollarSign className="h-8 w-8 text-green-600" />
+          </div>
+          <Link to={ROUTES.AFFILIATE_ACCOUNT} className="text-sm text-blue-600 hover:text-blue-800 mt-2 inline-block">
+            View Account →
+          </Link>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm border p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">This Month</p>
+              <p className="text-2xl font-bold text-blue-600">${affiliateData.thisMonthEarnings.toFixed(2)}</p>
+            </div>
+            <Calendar className="h-8 w-8 text-blue-600" />
+          </div>
+          <p className="text-xs text-gray-500 mt-2">{affiliateData.conversions} conversions</p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm border p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Clicks</p>
+              <p className="text-2xl font-bold text-purple-600">{affiliateData.totalClicks.toLocaleString()}</p>
+            </div>
+            <Eye className="h-8 w-8 text-purple-600" />
+          </div>
+          <p className="text-xs text-gray-500 mt-2">{affiliateData.conversionRate}% conversion rate</p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm border p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Active Links</p>
+              <p className="text-2xl font-bold text-orange-600">{affiliateData.activeLinks}</p>
+            </div>
+            <Share2 className="h-8 w-8 text-orange-600" />
+          </div>
+          <Link to={ROUTES.AFFILIATE_MARKETING_MATERIALS} className="text-sm text-blue-600 hover:text-blue-800 mt-2 inline-block">
+            View Materials →
+          </Link>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="bg-white rounded-lg shadow-sm border p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Link
+            to={ROUTES.AFFILIATE_MARKETING_MATERIALS}
+            className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors group"
+          >
+            <div className="flex items-center space-x-3">
+              <Share2 className="h-6 w-6 text-gray-400 group-hover:text-blue-600" />
+              <div>
+                <h3 className="font-medium text-gray-900">Get Marketing Materials</h3>
+                <p className="text-sm text-gray-600">QR codes, links, and promotional content</p>
+              </div>
+            </div>
+          </Link>
+
+          <Link
+            to={ROUTES.AFFILIATE_ACCOUNT}
+            className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-400 hover:bg-green-50 transition-colors group"
+          >
+            <div className="flex items-center space-x-3">
+              <CreditCard className="h-6 w-6 text-gray-400 group-hover:text-green-600" />
+              <div>
+                <h3 className="font-medium text-gray-900">Manage Account</h3>
+                <p className="text-sm text-gray-600">View balance, payouts, and settings</p>
+              </div>
+            </div>
+          </Link>
+
+          <Link
+            to={ROUTES.AFFILIATE_MARKETING_TOOLS}
+            className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-400 hover:bg-purple-50 transition-colors group"
+          >
+            <div className="flex items-center space-x-3">
+              <TrendingUp className="h-6 w-6 text-gray-400 group-hover:text-purple-600" />
+              <div>
+                <h3 className="font-medium text-gray-900">Marketing Tools</h3>
+                <p className="text-sm text-gray-600">Advanced tracking and analytics</p>
+              </div>
+            </div>
+          </Link>
+        </div>
+      </div>
+
+      {/* Recent Activity */}
+      <div className="bg-white rounded-lg shadow-sm border p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
+        <div className="space-y-3">
+          {recentActivity.map((activity) => (
+            <div key={activity.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center space-x-3">
+                {activity.type === 'conversion' ? (
+                  <DollarSign className="h-4 w-4 text-green-600" />
+                ) : (
+                  <Eye className="h-4 w-4 text-blue-600" />
+                )}
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{activity.description}</p>
+                  <p className="text-xs text-gray-500">{activity.date}</p>
+                </div>
+              </div>
+              {activity.amount > 0 && (
+                <span className="text-sm font-medium text-green-600">+${activity.amount.toFixed(2)}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Next Payout Info */}
+      <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-lg p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold text-gray-900">Next Payout</h3>
+            <p className="text-sm text-gray-600">Scheduled for {affiliateData.nextPayoutDate}</p>
+            <p className="text-lg font-bold text-green-600 mt-1">
+              ${(affiliateData.currentBalance + affiliateData.pendingEarnings).toFixed(2)}
+            </p>
+          </div>
+          <Calendar className="h-8 w-8 text-blue-600" />
+        </div>
       </div>
     </div>
   );

@@ -1,13 +1,10 @@
-
 import React, { useState, FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom'; // Added Link
 import { useAuth } from '../hooks/useAuth';
 import { ROUTES } from '../constants';
 import Input from '../components/Input';
 import Button from '../components/Button';
-import { LogIn, UserCheck, Shield, Crown, Briefcase, Home } from 'lucide-react'; // Added Home
-import { mockUsers } from '../data/mockData'; // Import mockUsers
-import { UserRole } from '../types'; // Import UserRole from types
+import { LogIn, Home } from 'lucide-react'; // Removed UserCheck, Shield, Crown, Briefcase icons
 
 const logoUrl = "https://storage.googleapis.com/flutterflow-io-6f20.appspot.com/projects/review-fighters-3uqlyf/assets/0d4urifbt7s6/footer-logo.png";
 
@@ -32,35 +29,6 @@ const LoginPage: React.FC = () => {
       setIsLoading(false);
     }
   };
-
-  const handleQuickLogin = (role: UserRole) => {
-    let targetUser;
-    switch (role) {
-      case UserRole.AFFILIATE:
-        targetUser = mockUsers.find(u => u.email === 'another.affiliate@example.com'); 
-        break;
-      case UserRole.ADMIN:
-        targetUser = mockUsers.find(u => u.email === 'admin@example.com'); 
-        break;
-      case UserRole.OWNER:
-        targetUser = mockUsers.find(u => u.email === 'owner@example.com'); 
-        break;
-      case UserRole.STAFF:
-        targetUser = mockUsers.find(u => u.email === 'staff.support@example.com'); 
-        break;
-      default:
-        targetUser = mockUsers.find(u => u.email === 'user@example.com');
-    }
-
-    if (targetUser) {
-      setEmail(targetUser.email);
-      setPassword('password123'); 
-      setError(null); 
-    } else {
-      setError(`Mock user for role ${role} not found.`);
-    }
-  };
-
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-dark via-primary to-primary-light flex flex-col justify-center items-center p-4">
@@ -99,6 +67,11 @@ const LoginPage: React.FC = () => {
             required
             disabled={isLoading}
           />
+          <div className="text-right">
+            <Link to={ROUTES.FORGOT_PASSWORD} className="text-sm text-primary hover:text-primary-dark">
+              Forgot your password?
+            </Link>
+          </div>
           <Button 
             type="submit" 
             variant="primary" 
@@ -110,44 +83,6 @@ const LoginPage: React.FC = () => {
             {isLoading ? 'Signing In...' : 'Sign In'}
           </Button>
         </form>
-
-        <div className="mt-6 pt-6 border-t border-gray-200">
-          <p className="text-sm text-textSecondary text-center mb-3">Or quick login as:</p>
-          <div className="grid grid-cols-2 gap-3">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => handleQuickLogin(UserRole.AFFILIATE)}
-              leftIcon={<UserCheck size={16}/>}
-            >
-              Affiliate
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => handleQuickLogin(UserRole.ADMIN)}
-              leftIcon={<Shield size={16}/>}
-            >
-              Admin
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => handleQuickLogin(UserRole.OWNER)}
-              leftIcon={<Crown size={16}/>}
-            >
-              Owner
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => handleQuickLogin(UserRole.STAFF)}
-              leftIcon={<Briefcase size={16}/>}
-            >
-              Staff
-            </Button>
-          </div>
-        </div>
 
         <p className="text-center text-sm text-textSecondary mt-8">
           Don't have an account?{' '}

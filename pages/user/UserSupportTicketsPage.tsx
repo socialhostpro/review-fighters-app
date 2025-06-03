@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, FormEvent } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { staffService } from '../../services/staffService'; // Reusing staffService for ticket interactions
+import { emailService } from '../../services/emailService'; // Import email service
 import { SupportTicket, TicketComment, StaffMember, SupportTicketStatus, Priority, SubmittedByType, UserRole } from '../../types';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import Button from '../../components/Button';
@@ -133,7 +134,25 @@ const UserSupportTicketsPage: React.FC = () => {
           category: newTicketData.category,
       };
       try {
-          await staffService.createSupportTicket(dataToSave);
+          const createdTicket = await staffService.createSupportTicket(dataToSave);
+          
+          // Send email notification to admin/support team
+          if (emailService.isConfigured()) {
+            try {
+              await emailService.sendSupportTicketNotification(
+                user.name || 'Unknown User',
+                user.email || 'unknown@email.com',
+                dataToSave.subject,
+                dataToSave.description,
+                'admin@reviewfighters.com' // You could make this configurable
+              );
+              console.log('Support ticket notification email sent successfully');
+            } catch (emailError) {
+              console.error('Failed to send support ticket notification email:', emailError);
+              // Don't fail the ticket creation if email fails
+            }
+          }
+          
           fetchTickets();
           setIsCreateModalOpen(false);
           setNewTicketData({subject: '', description: '', priority: 'Medium', category: 'General Inquiry'});

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Admin Login</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-result { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .success { background: #d4edda; border-color: #c3e6cb; }
+        .error { background: #f8d7da; border-color: #f5c6cb; }
+    </style>
+</head>
+<body>
+    <h1>Admin Login Test</h1>
+    <p>Testing admin users from Review Fighters App</p>
+    
+    <h2>Test Users:</h2>
+    <ul>
+        <li><strong>Admin:</strong> admin@reviewfighters.com</li>
+        <li><strong>Owner:</strong> owner@reviewfighters.com</li>
+        <li><strong>Staff:</strong> staff@reviewfighters.com</li>
+        <li><strong>Affiliate:</strong> affiliate@reviewfighters.com</li>
+        <li><strong>Sales:</strong> sales@reviewfighters.com</li>
+        <li><strong>User:</strong> user@reviewfighters.com</li>
+    </ul>
+    
+    <h2>Quick Test Instructions:</h2>
+    <ol>
+        <li>Go to your main app: <a href="http://localhost:5178/" target="_blank">http://localhost:5178/</a></li>
+        <li>Try logging in with any of the emails above</li>
+        <li>Use any password (auth system uses mock authentication)</li>
+        <li>Check browser console for debug logs</li>
+    </ol>
+    
+    <h2>Debug Information:</h2>
+    <div id="debug-info">
+        <p>Convex URL should be: https://resolute-gecko-685.convex.cloud</p>
+        <p>Check browser console in the main app for detailed login logs</p>
+    </div>
+    
+    <h2>Troubleshooting:</h2>
+    <ul>
+        <li>If login fails, check browser console for error messages</li>
+        <li>Verify Convex backend is running with: <code>npx convex dev --once</code></li>
+        <li>Check if users exist with: <code>npx convex run auth:getAllUsers</code></li>
+    </ul>
+</body>
+</html> 

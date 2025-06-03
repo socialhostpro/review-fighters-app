@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { User, UserRole } from '../types';
 import { authService } from '../services/authService'; // Assuming authService handles actual auth logic
@@ -67,11 +66,12 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   );
 };
 
-export const useAuth = (): AuthContextType => {
+// Fast Refresh compatible function declaration
+export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-};
+}
     

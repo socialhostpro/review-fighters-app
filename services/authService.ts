@@ -1,6 +1,9 @@
-
 import { User, UserRole, UserProfile } from '../types';
 import { mockUsers, mockUserProfiles } from '../data/mockData';
+import { ConvexReactClient } from 'convex/react';
+import { api } from '../convex/_generated/api';
+import convex from '../convex';
+import { emailService } from './emailService';
 
 const FAKE_TOKEN_KEY = 'fake_auth_token';
 
@@ -10,51 +13,62 @@ const delay = <T,>(ms: number, value?: T): Promise<T> => new Promise(resolve => 
 export const authService = {
   login: async (email: string, pass: string): Promise<User> => {
     console.log(`Attempting login for: ${email}`); // Keep pass out of logs
+    console.log('Convex client URL:', (convex as any)._address); // Debug Convex URL
     await delay(500);
-    const user = mockUsers.find(u => u.email === email); // Simplified: no password check for mock
-    if (user) {
-      localStorage.setItem(FAKE_TOKEN_KEY, JSON.stringify({ userId: user.id, email: user.email, role: user.role, name: user.name }));
-      return user;
+    
+    try {
+      // Use Convex to find user by email
+      console.log('Querying Convex for user by email...');
+      const user = await convex.query(api.auth.getUserByEmail, { email });
+      console.log('Convex query result:', user);
+      
+      if (user) {
+        localStorage.setItem(FAKE_TOKEN_KEY, JSON.stringify({ userId: user._id, email: user.email, role: user.role, name: user.name }));
+        return {
+          id: user._id,
+          email: user.email,
+          name: user.name,
+          role: user.role as UserRole,
+          affiliateId: user.affiliateId,
+          staffId: user.staffId,
+          salesId: user.salesId,
+        };
+      }
+      console.log('No user found in Convex, throwing error');
+      throw new Error('Invalid credentials');
+    } catch (error) {
+      console.error('Login error:', error);
+      throw new Error('Invalid credentials');
     }
-    throw new Error('Invalid credentials');
   },
 
   signup: async (name: string, email: string, password: string): Promise<User> => {
     console.log(`Attempting signup for: ${email}`);
     await delay(700);
 
-    // Check if user already exists
-    if (mockUsers.some(u => u.email === email)) {
-      throw new Error('An account with this email already exists.');
+    try {
+      // Use Convex to create new user
+      const userId = await convex.mutation(api.auth.createUser, {
+        email,
+        name,
+        role: UserRole.USER,
+      });
+
+      const newUser: User = {
+        id: userId,
+        email,
+        name,
+        role: UserRole.USER,
+      };
+
+      console.log('New user created:', newUser);
+      return newUser;
+    } catch (error: any) {
+      if (error.message.includes('already exists')) {
+        throw new Error('An account with this email already exists.');
+      }
+      throw error;
     }
-
-    // Create new user
-    const newUser: User = {
-      id: `user_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      email,
-      name,
-      role: UserRole.USER, // Default role for new signups
-      // affiliateId and staffId are not set on initial user signup
-    };
-    mockUsers.push(newUser);
-
-    // Create basic user profile
-    const newUserProfile: UserProfile = {
-      id: newUser.id,
-      name: newUser.name,
-      email: newUser.email,
-      address: '', // Initialize with empty or default values
-      phone: '',
-      zipCode: '',
-      // Business fields and notes can be populated later through profile editing
-    };
-    mockUserProfiles.push(newUserProfile);
-
-    console.log('New user created:', newUser);
-    console.log('New user profile created:', newUserProfile);
-    
-    // Signup doesn't automatically log in. User needs to login separately.
-    return newUser;
   },
 
   logout: async (): Promise<void> => {
@@ -69,9 +83,19 @@ export const authService = {
     if (tokenData) {
       try {
         const parsedData = JSON.parse(tokenData);
-        // Find full user details from mock data if needed, or just use token data
-        const user = mockUsers.find(u => u.id === parsedData.userId);
-        return user || null; // Return full user object or null if not found
+        // Use Convex to get current user details
+        const user = await convex.query(api.auth.getUserById, { userId: parsedData.userId });
+        if (user) {
+          return {
+            id: user._id,
+            email: user.email,
+            name: user.name,
+            role: user.role as UserRole,
+            affiliateId: user.affiliateId,
+            staffId: user.staffId,
+            salesId: user.salesId,
+          };
+        }
       } catch (e) {
         console.error("Error parsing token data", e);
         localStorage.removeItem(FAKE_TOKEN_KEY); // Clear corrupted token
@@ -80,4 +104,75 @@ export const authService = {
     }
     return null;
   },
+
+  requestPasswordReset: async (email: string): Promise<void> => {
+    try {
+      // Check if user exists
+      const user = await convex.query(api.auth.getUserByEmail, { email });
+      if (!user) {
+        throw new Error('No account found with this email address');
+      }
+
+      // Generate a reset token (in production, this would be a secure token)
+      const resetToken = btoa(email + '_' + Date.now());
+
+      // Store the reset token in Convex (in production, this would be hashed)
+      await convex.mutation(api.auth.storeResetToken, {
+        userId: user._id,
+        token: resetToken,
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 hours
+      });
+
+      // Send reset email
+      await emailService.sendPasswordResetEmail(user.name, email, resetToken);
+    } catch (error) {
+      console.error('Password reset request failed:', error);
+      throw error;
+    }
+  },
+
+  resetPassword: async (token: string, newPassword: string): Promise<void> => {
+    try {
+      // Verify token and get user (in production, this would verify a hashed token)
+      const resetInfo = await convex.query(api.auth.verifyResetToken, { token });
+      if (!resetInfo) {
+        throw new Error('Invalid or expired reset token');
+      }
+
+      // Update password in Convex
+      await convex.mutation(api.auth.updatePassword, {
+        userId: resetInfo.userId,
+        newPassword
+      });
+
+      // Invalidate the used token
+      await convex.mutation(api.auth.invalidateResetToken, { token });
+    } catch (error) {
+      console.error('Password reset failed:', error);
+      throw error;
+    }
+  },
+
+  changePassword: async (userId: string, currentPassword: string, newPassword: string): Promise<void> => {
+    try {
+      // Verify current password
+      const isValid = await convex.query(api.auth.verifyPassword, {
+        userId,
+        password: currentPassword
+      });
+
+      if (!isValid) {
+        throw new Error('Current password is incorrect');
+      }
+
+      // Update password
+      await convex.mutation(api.auth.updatePassword, {
+        userId,
+        newPassword
+      });
+    } catch (error) {
+      console.error('Password change failed:', error);
+      throw error;
+    }
+  }
 };

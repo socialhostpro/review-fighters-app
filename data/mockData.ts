@@ -1,10 +1,10 @@
-
 import { 
   User, UserProfile, Review, MediaItem, StripeSubscription, UserRole,
   Affiliate, Click, Sale, MarketingMedia,
   StaffMember, Task, StaffReviewItem, KnowledgeBaseItem, StaffNotification, SupportTicket, TicketComment,
   SystemSetting, AuditLog, Payout, PayoutStatus, SystemSettingCategory, AuditLogActionType, StaffInternalRole,
-  AffiliateNotification, Priority, StaffReviewItemStatus, SupportTicketStatus, SubmittedByType, NotificationSeverity
+  AffiliateNotification, Priority, StaffReviewItemStatus, SupportTicketStatus, SubmittedByType, NotificationSeverity,
+  SalesMember, SalesTask, SalesTaskClaim, SalesNotification
 } from '../types';
 
 export const mockUsers: User[] = [
@@ -257,4 +257,124 @@ export const mockPayouts: Payout[] = [
   { payoutID: 'PAY_001', affiliateID_Ref: 'AFF_JD_123', amount: 75.00, requestedDate: '2023-03-15T00:00:00Z', status: PayoutStatus.PENDING_APPROVAL, notes: 'First payout request.' },
   { payoutID: 'PAY_002', affiliateID_Ref: 'AFF_JA_456', amount: 120.50, requestedDate: '2023-03-18T00:00:00Z', status: PayoutStatus.APPROVED, approvalDate: '2023-03-19T00:00:00Z', approvedByStaffId: 'STAFF_BO_000', notes: 'Approved for March earnings.' },
   { payoutID: 'PAY_003', affiliateID_Ref: 'AFF_JD_123', amount: 50.25, requestedDate: '2023-02-10T00:00:00Z', status: PayoutStatus.PROCESSED, approvalDate: '2023-02-11T00:00:00Z', approvedByStaffId: 'STAFF_BO_000', processingDate: '2023-02-12T00:00:00Z', processedByStaffId: 'STAFF_AA_001', transactionID_External: 'txn_abc123xyz', notes: 'February Payout' },
+];
+
+// Sales System Mock Data
+export const mockSalesMembers: SalesMember[] = [
+  {
+    salesId: 'SALES_001',
+    userId: 'user8',
+    name: 'Sales Member',
+    email: 'sales@reviewfighters.com',
+    signupDate: '2024-01-01T00:00:00Z',
+    status: 'Active',
+    currentBalance: 275.00,
+    totalEarnings: 1450.00,
+    totalTasksCompleted: 8,
+    averageRating: 4.7,
+    payoutDetails: 'PayPal: sales@reviewfighters.com',
+    specializations: ['Lead Generation', 'Research']
+  }
+];
+
+export const mockSalesTasks: SalesTask[] = [
+  {
+    taskId: 'TASK_001',
+    title: 'Find LinkedIn Profile - Tech CEO',
+    description: 'Search for and verify the LinkedIn profile of a tech startup CEO. Must provide profile URL, verification that person matches the company, and screenshot evidence.',
+    category: 'Research',
+    reward: 100.00,
+    requirements: [
+      'Valid LinkedIn profile URL',
+      'Screenshot of profile',
+      'Verification that person is CEO of specified company',
+      'Contact information if publicly available'
+    ],
+    estimatedTime: '1-2 hours',
+    difficulty: 'Medium',
+    status: 'Available',
+    postedDate: '2024-01-15T09:00:00Z',
+    deadline: '2024-01-20T17:00:00Z',
+    maxClaims: 1,
+    currentClaims: 0,
+    createdByStaffId: 'STAFF_AA_001',
+    tags: ['linkedin', 'research', 'verification']
+  },
+  {
+    taskId: 'TASK_002',
+    title: 'Lead Generation - SaaS Companies',
+    description: 'Generate 20 qualified leads for B2B SaaS companies in the healthcare sector. Each lead must include company name, contact person, email, and brief reason why they might need our services.',
+    category: 'Lead Generation',
+    reward: 250.00,
+    requirements: [
+      '20 qualified leads',
+      'Company name and website',
+      'Decision maker contact info',
+      'Brief qualification notes',
+      'Excel/CSV format submission'
+    ],
+    estimatedTime: '4-6 hours',
+    difficulty: 'Hard',
+    status: 'Available',
+    postedDate: '2024-01-14T14:00:00Z',
+    maxClaims: 2,
+    currentClaims: 1,
+    createdByStaffId: 'STAFF_MM_102',
+    tags: ['leads', 'saas', 'healthcare', 'b2b']
+  },
+  {
+    taskId: 'TASK_003',
+    title: 'Verify Business Information',
+    description: 'Call a list of 10 businesses and verify their current contact information, business hours, and whether they are still operating.',
+    category: 'Verification',
+    reward: 75.00,
+    requirements: [
+      'Call each business during business hours',
+      'Verify phone number accuracy',
+      'Confirm business hours',
+      'Note if business is closed/moved',
+      'Professional phone manner required'
+    ],
+    estimatedTime: '2-3 hours',
+    difficulty: 'Easy',
+    status: 'Available',
+    postedDate: '2024-01-16T11:00:00Z',
+    maxClaims: 3,
+    currentClaims: 0,
+    createdByStaffId: 'STAFF_SS_101',
+    tags: ['verification', 'phone', 'business-info']
+  }
+];
+
+export const mockSalesTaskClaims: SalesTaskClaim[] = [
+  {
+    claimId: 'CLAIM_001',
+    taskId: 'TASK_002',
+    salesId: 'SALES_001',
+    claimedDate: '2024-01-14T15:30:00Z',
+    status: 'In Progress'
+  }
+];
+
+export const mockSalesNotifications: SalesNotification[] = [
+  {
+    notificationId: 'SALES_NOTIF_001',
+    recipientSalesId: 'SALES_001',
+    message: 'New high-paying task available: Find LinkedIn Profile - Tech CEO ($100)',
+    timestamp: '2024-01-15T09:15:00Z',
+    isRead: false,
+    severity: 'Info',
+    relatedTaskId: 'TASK_001',
+    actionRequired: false
+  },
+  {
+    notificationId: 'SALES_NOTIF_002',
+    recipientSalesId: 'SALES_001',
+    message: 'Task deadline reminder: Lead Generation - SaaS Companies due in 2 days',
+    timestamp: '2024-01-16T10:00:00Z',
+    isRead: false,
+    severity: 'Warning',
+    relatedTaskId: 'TASK_002',
+    actionRequired: true
+  }
 ];
