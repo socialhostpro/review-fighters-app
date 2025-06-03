@@ -1,4 +1,3 @@
-
 import { 
     StaffMember, Task, StaffReviewItem, StaffNotification, SupportTicket, TicketComment, 
     User, UserRole, SubmittedByType 
@@ -7,6 +6,10 @@ import {
     mockStaffMembers, mockTasks, mockStaffReviewItems, mockStaffNotifications, 
     mockSupportTickets, mockTicketComments, mockUsers
 } from '../data/mockData';
+import { api } from '../convex/_generated/api';
+import convex from '../convex';
+import { generateRandomPassword } from '../utils/auth';
+import { sendInvitationEmail } from '../utils/email';
 
 // Simulates API delay
 const delay = <T,>(ms: number, value?: T): Promise<T> => new Promise(resolve => setTimeout(() => resolve(value as T), ms));
@@ -26,9 +29,21 @@ export const staffService = {
     return staffMembersStore.find(sm => sm.staffId === staffId) || null;
   },
 
-  getAllStaffMembers: async (): Promise<StaffMember[]> => { // For Admin view
-    await delay(300);
-    return [...staffMembersStore];
+  getAllStaffMembers: async (): Promise<StaffMember[]> => {
+    try {
+      const staffMembers = await convex.query(api.staff.getAllStaffMembers);
+      return staffMembers.map(staff => ({
+        staffId: staff._id,
+        userId: staff.userId,
+        name: staff.name,
+        email: staff.email,
+        internalRole: staff.internalRole,
+        team: staff.team,
+      }));
+    } catch (error) {
+      console.error('Error fetching staff members:', error);
+      throw error;
+    }
   },
 
   // Task Management
@@ -164,5 +179,104 @@ export const staffService = {
     };
     supportTicketsStore.push(newTicket);
     return {...newTicket};
-  }
+  },
+
+  createStaffMember: async (staffData: Partial<StaffMember> & { sendInvite?: boolean }): Promise<StaffMember> => {
+    try {
+      // First create the user account
+      const userId = await convex.mutation(api.auth.createUser, {
+        email: staffData.email!,
+        name: staffData.name!,
+        role: UserRole.STAFF,
+        sendInvite: staffData.sendInvite,
+      });
+
+      // Then create the staff record
+      const staffId = await convex.mutation(api.staff.createStaffMember, {
+        userId,
+        name: staffData.name!,
+        email: staffData.email!,
+        internalRole: staffData.internalRole || 'Support',
+        team: staffData.team || '',
+      });
+
+      return {
+        staffId,
+        userId,
+        name: staffData.name!,
+        email: staffData.email!,
+        internalRole: staffData.internalRole || 'Support',
+        team: staffData.team || '',
+      };
+    } catch (error) {
+      console.error('Error creating staff member:', error);
+      throw error;
+    }
+  },
+
+  updateStaffMember: async (staffId: string, staffData: Partial<StaffMember>): Promise<void> => {
+    try {
+      await convex.mutation(api.staff.updateStaffMember, {
+        staffId,
+        ...staffData,
+      });
+    } catch (error) {
+      console.error('Error updating staff member:', error);
+      throw error;
+    }
+  },
+
+  resetStaffPassword: async (staffId: string): Promise<void> => {
+    try {
+      // Get staff member details
+      const staff = await convex.query(api.staff.getStaffMember, { staffId });
+      if (!staff) {
+        throw new Error('Staff member not found');
+      }
+
+      // Generate new password
+      const newPassword = generateRandomPassword();
+
+      // Update password in database
+      await convex.mutation(api.auth.updatePassword, {
+        userId: staff.userId,
+        newPassword,
+      });
+
+      // Send email with new password
+      await sendInvitationEmail({
+        name: staff.name,
+        email: staff.email,
+        password: newPassword,
+        role: 'Staff',
+      });
+    } catch (error) {
+      console.error('Error resetting staff password:', error);
+      throw error;
+    }
+  },
+
+  deactivateStaffMember: async (staffId: string): Promise<void> => {
+    try {
+      await convex.mutation(api.staff.updateStaffMember, {
+        staffId,
+        status: 'disabled',
+      });
+    } catch (error) {
+      console.error('Error deactivating staff member:', error);
+      throw error;
+    }
+  },
+
+  activateStaffMember: async (staffId: string): Promise<void> => {
+    try {
+      await convex.mutation(api.staff.updateStaffMember, {
+        staffId,
+        status: 'active',
+      });
+    } catch (error) {
+      console.error('Error activating staff member:', error);
+      throw error;
+    }
+  },
 };

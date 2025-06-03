@@ -4,29 +4,48 @@ import { v } from "convex/values";
 export default defineSchema({
   users: defineTable({
     email: v.string(),
-    role: v.string(),
     name: v.string(),
-    affiliateId: v.optional(v.string()),
-    staffId: v.optional(v.string()),
-    salesId: v.optional(v.string()),
+    role: v.string(),
+    passwordHash: v.optional(v.string()),
+    resetToken: v.optional(v.string()),
+    resetTokenExpiresAt: v.optional(v.string()),
+    status: v.string(),
+    createdAt: v.string(),
+    lastLogin: v.optional(v.string()),
+    staffId: v.optional(v.id("staffMembers")),
+    affiliateId: v.optional(v.id("affiliates")),
+    salesId: v.optional(v.id("salesMembers")),
   }).index("by_email", ["email"]),
+
+  staffMembers: defineTable({
+    userId: v.optional(v.id("users")),
+    name: v.string(),
+    email: v.string(),
+    internalRole: v.string(),
+    team: v.optional(v.string()),
+    isOwner: v.optional(v.boolean()),
+    status: v.string(),
+  }).index("by_user", ["userId"]),
+
+  staff: defineTable({
+    userId: v.id("users"),
+    name: v.string(),
+    email: v.string(),
+    internalRole: v.string(),
+    team: v.string(),
+    status: v.string(),
+    createdAt: v.string(),
+  }).index("by_email", ["email"])
+    .index("by_userId", ["userId"]),
 
   userProfiles: defineTable({
     userId: v.id("users"),
     name: v.string(),
+    email: v.string(),
     address: v.string(),
     phone: v.string(),
-    email: v.string(),
     zipCode: v.string(),
-    businessName: v.optional(v.string()),
-    businessAddress: v.optional(v.string()),
-    businessPhoneNumber: v.optional(v.string()),
-    businessEmail: v.optional(v.string()),
-    businessWebsite: v.optional(v.string()),
-    businessSocials: v.optional(v.any()),
-    adminNotes: v.optional(v.string()),
-    customerNotes: v.optional(v.string()),
-  }).index("by_user", ["userId"]),
+  }).index("by_userId", ["userId"]),
 
   reviews: defineTable({
     reviewerName: v.string(),
@@ -55,15 +74,6 @@ export default defineSchema({
     qrCodeLink: v.string(),
     userId: v.optional(v.id("users")),
     isHighValue: v.optional(v.boolean()),
-  }).index("by_user", ["userId"]),
-
-  staffMembers: defineTable({
-    userId: v.optional(v.id("users")),
-    name: v.string(),
-    email: v.string(),
-    internalRole: v.string(),
-    team: v.optional(v.string()),
-    isOwner: v.optional(v.boolean()),
   }).index("by_user", ["userId"]),
 
   salesMembers: defineTable({

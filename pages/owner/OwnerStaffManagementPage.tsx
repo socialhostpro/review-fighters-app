@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { staffService } from '../../services/staffService'; // Assuming this exists
@@ -7,7 +6,7 @@ import LoadingSpinner from '../../components/LoadingSpinner';
 import Button from '../../components/Button';
 import Modal from '../../components/Modal';
 import Input from '../../components/Input';
-import { AlertTriangle, Users, UserPlus, Edit3, Briefcase, BarChartHorizontal } from 'lucide-react';
+import { AlertTriangle, Users, UserPlus, Edit3, Briefcase, BarChartHorizontal, Lock } from 'lucide-react';
 
 const OwnerStaffManagementPage: React.FC = () => {
   const { user } = useAuth();
@@ -61,37 +60,40 @@ const OwnerStaffManagementPage: React.FC = () => {
 
   const handleSaveChanges = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingStaff || !user ) return;
+    if (!editingStaff || !user) return;
     setIsSaving(true);
     try {
       if (editingStaff.staffId) {
-        // Update existing staff member - Mock
-        // await staffService.updateStaffMember(editingStaff.staffId, editingStaff);
-        console.log("Mock update staff:", editingStaff);
-         const updatedStaff = staffMembers.map(sm => sm.staffId === editingStaff.staffId ? {...sm, ...editingStaff} : sm);
-         setStaffMembers(updatedStaff);
+        // Update existing staff member
+        await staffService.updateStaffMember(editingStaff.staffId, editingStaff);
+        const updatedStaff = staffMembers.map(sm => 
+          sm.staffId === editingStaff.staffId ? {...sm, ...editingStaff} : sm
+        );
+        setStaffMembers(updatedStaff);
       } else {
-        // Create new staff member - Mock
-        // This would involve creating a User account too.
-        // const newStaff = await staffService.createStaffMember(editingStaff, newStaffPassword);
-        console.log("Mock create staff:", editingStaff, "Password:", newStaffPassword);
-        const newStaffEntry: StaffMember = {
-            staffId: `STAFF_${Date.now()}`,
-            userId: `user_${Date.now()}`, // Mock user ID
-            name: editingStaff.name || 'N/A',
-            email: editingStaff.email || 'N/A',
-            internalRole: editingStaff.internalRole || 'Support',
-            team: editingStaff.team,
-            // isOwner flag should be handled carefully, not typically set here unless intended
-        };
-        setStaffMembers(prev => [...prev, newStaffEntry]);
+        // Create new staff member with invitation
+        const newStaff = await staffService.createStaffMember({
+          ...editingStaff,
+          sendInvite: true // This will trigger password generation and email
+        });
+        setStaffMembers(prev => [...prev, newStaff]);
       }
-      // await fetchStaffMembers(); // Re-fetch after actual save
       handleCloseModal();
     } catch (err) {
       alert(`Error saving staff member: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleResetPassword = async (staffId: string) => {
+    if (window.confirm('Are you sure you want to reset this user\'s password? A new password will be generated and sent to their email.')) {
+      try {
+        await staffService.resetStaffPassword(staffId);
+        alert('Password has been reset and sent to the user\'s email.');
+      } catch (error) {
+        alert(`Failed to reset password: ${error instanceof Error ? error.message : String(error)}`);
+      }
     }
   };
 
@@ -149,9 +151,18 @@ const OwnerStaffManagementPage: React.FC = () => {
                 <td className="px-6 py-4 whitespace-nowrap text-textSecondary">{staff.internalRole}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-textSecondary">{staff.team || 'N/A'}</td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <Button variant="ghost" size="sm" onClick={() => handleOpenModal(staff)} title="Edit Staff Details">
-                    <Edit3 size={16} />
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleResetPassword(staff.staffId)}
+                      className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50"
+                      title="Reset Password"
+                    >
+                      <Lock size={16} />
+                    </button>
+                    <Button variant="ghost" size="sm" onClick={() => handleOpenModal(staff)} title="Edit Staff Details">
+                      <Edit3 size={16} />
+                    </Button>
+                  </div>
                   {/* Add deactivate/activate button based on status */}
                 </td>
               </tr>

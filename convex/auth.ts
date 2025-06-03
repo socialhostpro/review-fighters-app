@@ -1,5 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { generatePasswordHash, generateRandomPassword, verifyPassword as verifyPasswordUtil } from '../utils/auth';
+import { sendInvitationEmail } from '../utils/email';
 
 // Get user by email
 export const getUserByEmail = query({
@@ -20,12 +22,13 @@ export const getUserById = query({
   },
 });
 
-// Create a new user
+// Create a new user with invitation
 export const createUser = mutation({
   args: {
     email: v.string(),
     name: v.string(),
     role: v.string(),
+    sendInvite: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     // Check if user already exists
@@ -38,11 +41,21 @@ export const createUser = mutation({
       throw new Error("User with this email already exists");
     }
 
+    // Generate a random initial password if sending invite
+    const initialPassword = args.sendInvite ? generateRandomPassword() : undefined;
+    const passwordHash = initialPassword ? await generatePasswordHash(initialPassword) : undefined;
+
     // Create the user
     const userId = await ctx.db.insert("users", {
       email: args.email,
       name: args.name,
       role: args.role,
+      passwordHash,
+      status: 'active',
+      createdAt: new Date().toISOString(),
+      lastLogin: undefined,
+      resetToken: undefined,
+      resetTokenExpiresAt: undefined,
     });
 
     // Create basic user profile
@@ -55,7 +68,131 @@ export const createUser = mutation({
       zipCode: "",
     });
 
+    // Create role-specific records
+    if (args.role === "staff" || args.role === "owner" || args.role === "admin") {
+      const staffId = await ctx.db.insert("staffMembers", {
+        userId,
+        name: args.name,
+        email: args.email,
+        internalRole: args.role === "owner" ? "Owner" : args.role === "admin" ? "Admin" : "Support",
+        team: args.role === "owner" ? "Management" : args.role === "admin" ? "Administration" : "Customer Support",
+        isOwner: args.role === "owner",
+        status: "active",
+      });
+
+      // Update user with staffId
+      await ctx.db.patch(userId, { staffId });
+    }
+
+    // Send invitation email if requested
+    if (args.sendInvite && initialPassword) {
+      await sendInvitationEmail({
+        name: args.name,
+        email: args.email,
+        password: initialPassword,
+        role: args.role,
+      });
+    }
+
     return userId;
+  },
+});
+
+// Update user password
+export const updatePassword = mutation({
+  args: {
+    userId: v.id("users"),
+    newPassword: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const passwordHash = await generatePasswordHash(args.newPassword);
+    await ctx.db.patch(args.userId, { passwordHash });
+  },
+});
+
+// Verify password
+export const verifyPassword = query({
+  args: {
+    userId: v.id("users"),
+    password: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    if (!user || !user.passwordHash) {
+      return false;
+    }
+    return await verifyPasswordUtil(args.password, user.passwordHash);
+  },
+});
+
+// Store password reset token
+export const storeResetToken = mutation({
+  args: {
+    userId: v.id("users"),
+    token: v.string(),
+    expiresAt: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.userId, {
+      resetToken: undefined,
+      resetTokenExpiresAt: undefined,
+    });
+  },
+});
+
+// Verify reset token
+export const verifyResetToken = query({
+  args: { token: v.string() },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("resetToken"), args.token))
+      .first();
+
+    if (!user || !user.resetTokenExpiresAt) {
+      return null;
+    }
+
+    const expiresAt = new Date(user.resetTokenExpiresAt);
+    if (expiresAt < new Date()) {
+      return null;
+    }
+
+    return { userId: user._id };
+  },
+});
+
+// Invalidate reset token
+export const invalidateResetToken = mutation({
+  args: { token: v.string() },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("resetToken"), args.token))
+      .first();
+
+    if (user) {
+      await ctx.db.patch(user._id, {
+        resetToken: undefined,
+        resetTokenExpiresAt: undefined,
+      });
+    }
+  },
+});
+
+// Reset password token
+export const clearResetToken = mutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.userId, {
+      resetToken: undefined,
+      resetTokenExpiresAt: undefined,
+    });
   },
 });
 
@@ -111,6 +248,15 @@ export const seedTestUsers = mutation({
           email: userData.email,
           name: userData.name,
           role: userData.role,
+          status: "active",
+          createdAt: new Date().toISOString(),
+          lastLogin: undefined,
+          resetToken: undefined,
+          resetTokenExpiresAt: undefined,
+          passwordHash: undefined,
+          staffId: undefined,
+          affiliateId: undefined,
+          salesId: undefined
         });
 
         // Create basic user profile
@@ -118,9 +264,9 @@ export const seedTestUsers = mutation({
           userId,
           name: userData.name,
           email: userData.email,
-          address: userData.role === "admin" ? "123 Admin Street" : "",
-          phone: userData.role === "admin" ? "555-0123" : "",
-          zipCode: userData.role === "admin" ? "12345" : "",
+          address: "",
+          phone: "",
+          zipCode: "",
         });
 
         // Create additional data for specific roles
@@ -174,6 +320,7 @@ export const seedTestUsers = mutation({
             internalRole: userData.role === "owner" ? "Owner" : userData.role === "admin" ? "Admin" : "Support",
             team: userData.role === "owner" ? "Management" : userData.role === "admin" ? "Administration" : "Customer Support",
             isOwner: userData.role === "owner",
+            status: "active"
           });
 
           // Update user with staffId
@@ -238,6 +385,7 @@ export const fixUserRelationships = mutation({
             internalRole: user.role === "owner" ? "Owner" : user.role === "admin" ? "Admin" : "Support",
             team: user.role === "owner" ? "Management" : user.role === "admin" ? "Administration" : "Customer Support",
             isOwner: user.role === "owner",
+            status: "active",
           });
         } else {
           staffId = staffMember._id;
@@ -469,4 +617,28 @@ export const seedSampleSalesTasks = mutation({
 
     return createdTasks;
   },
-}); 
+});
+
+// Create staff member
+export const createStaffMember = mutation({
+  args: {
+    userId: v.id("users"),
+    name: v.string(),
+    email: v.string(),
+    internalRole: v.string(),
+    team: v.string(),
+    isOwner: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    const staffId = await ctx.db.insert("staffMembers", {
+      userId: args.userId,
+      name: args.name,
+      email: args.email,
+      internalRole: args.internalRole,
+      team: args.team,
+      isOwner: args.isOwner,
+      status: 'active',
+    });
+    return staffId;
+  },
+});

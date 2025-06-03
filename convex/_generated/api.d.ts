@@ -15,6 +15,7 @@ import type {
 } from "convex/server";
 import type * as auth from "../auth.js";
 import type * as reviews from "../reviews.js";
+import type * as staff from "../staff.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -27,6 +28,7 @@ import type * as reviews from "../reviews.js";
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   reviews: typeof reviews;
+  staff: typeof staff;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

@@ -2,9 +2,18 @@ import { AffiliateNotification } from '../types';
 import { mockAffiliateNotifications } from '../data/mockData';
 
 // Enhanced notification interfaces
-interface NotificationOptions {
+export interface NotificationAction {
+  label: string;
+  onClick: () => void;
+}
+
+export interface NotificationOptions {
   title: string;
-  body: string;
+  message: string;
+  type?: 'info' | 'success' | 'warning' | 'error';
+  duration?: number;
+  onClick?: () => void;
+  onClose?: () => void;
   icon?: string;
   badge?: string;
   tag?: string;
@@ -80,7 +89,7 @@ class NotificationService {
 
     try {
       const notification = new Notification(options.title, {
-        body: options.body,
+        body: options.message,
         icon: options.icon || this.defaultIcon,
         badge: options.badge,
         tag: options.tag,
@@ -205,7 +214,7 @@ class NotificationService {
     if (showBrowser && document.visibilityState === 'hidden') {
       await this.showBrowserNotification({
         title,
-        body: message,
+        message,
         requireInteraction,
         tag: `review-fighters-${type}`,
         data: { actionUrl, metadata }
@@ -366,10 +375,31 @@ class NotificationService {
     this.affiliateNotificationsStore.push(newNotification);
     return { ...newNotification };
   }
+
+  show = (options: NotificationOptions & { actions?: NotificationAction[] }) => {
+    // Implementation of show method
+    this.notify({
+      title: options.title,
+      message: options.message,
+      type: options.type || 'info',
+      showBrowser: true,
+      requireInteraction: options.requireInteraction
+    });
+  };
+
+  notifySupportTicket = async (customerName: string, ticketSubject: string) => {
+    await this.notify({
+      title: 'New Support Ticket',
+      message: `${customerName} submitted a ticket: ${ticketSubject}`,
+      type: 'info',
+      showBrowser: true,
+      requireInteraction: true
+    });
+  };
 }
 
 // Create singleton instance
 export const notificationService = new NotificationService();
 
-// Export types
-export type { NotificationOptions, SystemNotification };
+// Export only SystemNotification type since NotificationOptions is already exported above
+export type { SystemNotification };
