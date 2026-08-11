@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "start": "vite preview --host --port $PORT",
+    "start": "node server.js",
     "convex:dev": "convex dev",
     "convex:deploy": "convex deploy"
   },
